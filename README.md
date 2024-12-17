@@ -113,7 +113,7 @@ npm install
 
 ## Demo Video
 
-[Download and watch the demo video](Ash-intosh/Speech-Activated-Captcha-Solver/CAPTCHA-SOLVER.mp4)
-
+Watch the video demonstration here:  
+[![Watch the video](https://img.youtube.com/vi/AOpSnFbVl0E/hqdefault.jpg)](https://www.youtube.com/watch?v=AOpSnFbVl0E)
 
 Happy Captcha Solving! 🎤✨
