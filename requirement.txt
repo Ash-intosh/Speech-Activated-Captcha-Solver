@@ -1,0 +1,7 @@
+express
+multer
+fluent-ffmpeg
+wav
+
+# Run the following code to install all the dependencies
+npm install express multer fluent-ffmpeg wav

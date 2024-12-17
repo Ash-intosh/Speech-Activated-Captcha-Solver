@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAPTCHA SOLVER</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 300px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        #captcha {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #mathCaptcha {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #logo {
+            width: 150px;
+            margin-bottom: 20px;
+        }
+        #refreshCaptcha {
+            cursor: pointer;
+            font-size: 24px;
+            color: #007bff;
+            transition: transform 0.2s;
+        }
+
+        #refreshCaptcha:hover {
+            transform: rotate(360deg);
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+        }
+
+        audio {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .next-page {
+            font-size: 20px;
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Logo Section -->
+        <img id="logo" src="logo.png" alt="Logo">
+
+        <!-- Welcome Text -->
+        <h1>Welcome to Captcha Verification</h1>
+        <p>Please click the "Start Recording" button to record your voice and solve the CAPTCHA!</p>
+
+        <!-- CAPTCHA Section -->
+        <div id="captcha">
+            <p>Solve the equation:</p>
+            <p id="mathCaptcha"></p>
+            <span id="refreshCaptcha">&#8635;</span>
+        </div>
+
+        <button id="startRecord">Start Recording</button>
+        <br><br>
+        <audio id="audioPlayer" controls></audio>
+    </div>
+
+    <script>
+        // Simple CAPTCHA Generator (Frontend side)
+        function generateCaptcha() {
+            // Generate random numbers in the range 0 to 9
+            let num1 = Math.floor(Math.random() * 10);
+            let num2 = Math.floor(Math.random() * 10);
+
+            // Randomly choose between addition or subtraction
+            const operator = Math.random() > 0.5 ? '+' : '-';
+
+            let answer;
+
+            // Debugging: log generated numbers and operator
+            console.log("Generated numbers:", num1, num2, "Operator:", operator);
+
+            if (operator === '+') {
+                // Ensure sum is within range 0 to 9
+                answer = num1 + num2;
+                if (answer > 9) {
+                    // If sum exceeds 9, adjust num2 to keep the result <= 9
+                    num2 = 9 - num1;
+                    answer = num1 + num2;
+                }
+            } else if (operator === '-') {
+                // Ensure subtraction result is within range 0 to 9 (num1 >= num2)
+                if (num1 < num2) {
+                    // Swap the numbers to avoid a negative result
+                    [num1, num2] = [num2, num1];
+                }
+                answer = num1 - num2;
+        }
+
+    // Debugging: log the final numbers and answer
+    console.log("Final equation:", num1, operator, num2, "Answer:", answer);
+
+    // Ensure the mathCaptcha element is available
+    const captchaElement = document.getElementById('mathCaptcha');
+    if (captchaElement) {
+        // Display the equation on the page
+        captchaElement.textContent = `${num1} ${operator} ${num2} = ?`;
+    } else {
+        console.error("Math captcha element not found!");
+    }
+
+    // Return the equation and the answer
+    return { num1, num2, operator, answer };
+}
+
+        // Store the CAPTCHA data (generated in the frontend)
+        let captchaData = generateCaptcha();
+
+        // Event listener for start recording
+        document.getElementById('startRecord').addEventListener('click', async () => {
+            // Start recording audio for 2 seconds
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            const audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                document.getElementById('audioPlayer').src = audioUrl;
+
+                // Automatically upload the audio file to the backend
+                const formData = new FormData();
+                formData.append("audio", audioBlob, "recorded.webm");
+                formData.append("captchaEquation", JSON.stringify(captchaData)); // Send the CAPTCHA equation data
+
+                // Upload the audio to the server
+                fetch("/upload", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Redirect to the next page if CAPTCHA is solved
+                        window.location.href = '/welcome.html';
+                    } else {
+                        alert('Incorrect CAPTCHA solution. Try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error uploading audio:', error);
+                });
+            };
+
+            // Start recording and stop after 2 seconds
+            mediaRecorder.start();
+            setTimeout(() => {
+                mediaRecorder.stop();
+            }, 2000);
+        });
+
+        // Refresh CAPTCHA when the arrow is clicked
+        document.getElementById('refreshCaptcha').addEventListener('click', () => {
+            captchaData = generateCaptcha();
+        });
+    </script>
+</body>
+</html>
